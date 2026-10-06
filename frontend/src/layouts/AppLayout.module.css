@@ -1,0 +1,45 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* The right side: topbar + scrollable main */
+.content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+/* Mobile: no sidebar offset */
+@media (max-width: 768px) {
+  .content {
+    margin-left: 0;
+  }
+}
+
+.backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 99;
+  }
+}

@@ -1,0 +1,11 @@
+# Never bake environment files into the image.
+# Runtime config is injected via docker-compose.yml environment section.
+.env
+.env.*
+.venv
+.venv314
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+tests/
