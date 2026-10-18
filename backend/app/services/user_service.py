@@ -35,17 +35,49 @@ async def get_user_service(db: AsyncIOMotorDatabase, user_id: str) -> UserRespon
 
 
 async def create_user_service(db: AsyncIOMotorDatabase, data: UserCreate) -> UserResponse:
-    existing = await get_user_by_email(db, data.email)
+    from datetime import datetime, timezone
+
+    clean_email = data.email.strip().lower()
+    existing = await get_user_by_email(db, clean_email)
     if existing:
         raise ConflictError("A user with this email already exists")
 
+    is_active = data.is_active if data.is_active is not None else True
+    status = "active" if is_active else "inactive"
+
     doc = await repo_create_user(
         db,
-        email=data.email,
-        full_name=data.full_name,
+        email=clean_email,
+        full_name=data.full_name.strip(),
         plain_password=data.password,
         role=data.role,
+        is_active=is_active,
+        status=status,
     )
+
+    now = datetime.now(timezone.utc)
+    if data.role == "athlete":
+        await db.athletes.insert_one({
+            "user_id": doc["_id"],
+            "full_name": doc["full_name"],
+            "email": doc["email"],
+            "sport_id": None,
+            "coach_id": None,
+            "status": "active" if is_active else "inactive",
+            "created_at": now,
+            "updated_at": now,
+        })
+    elif data.role == "coach":
+        await db.coaches.insert_one({
+            "user_id": doc["_id"],
+            "full_name": doc["full_name"],
+            "email": doc["email"],
+            "sport_ids": [],
+            "status": "active" if is_active else "inactive",
+            "created_at": now,
+            "updated_at": now,
+        })
+
     return UserResponse.from_doc(doc)
 
 

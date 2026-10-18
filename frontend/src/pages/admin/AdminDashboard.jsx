@@ -10,6 +10,7 @@ import { getAdminAnalyticsSummary, getAdminSportsAnalytics } from '../../service
 import { getTournamentRankings } from '../../services/rankingService'
 import { getTrainingSessions } from '../../services/trainingService'
 import notificationService from '../../services/notificationService'
+import SportsBanner from '../../components/common/SportsBanner'
 import styles from './AdminDashboard.module.css'
 
 export default function AdminDashboard() {
@@ -63,27 +64,37 @@ export default function AdminDashboard() {
   return (
     <AppLayout title="Academy Control Center">
       <div className={styles.dashboard}>
-        {/* Header Bar */}
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1>Academy Control Center</h1>
-            <p>High-performance athlete monitoring, coaching operations & academy insights</p>
-          </div>
-          <div className={styles.actionRow}>
-            <Link to="/admin/athletes" className={styles.primaryBtn}>
-              <span>+</span> Register Athlete
-            </Link>
-            <Link to="/admin/training" className={styles.secondaryBtn}>
-              <span>⏱️</span> Schedule Training
-            </Link>
-            <Link to="/admin/tournaments" className={styles.secondaryBtn}>
-              <span>🏆</span> Tournaments
-            </Link>
-            <Link to="/admin/reports" className={styles.secondaryBtn}>
-              <span>📑</span> Full Reports
-            </Link>
-          </div>
-        </div>
+        {/* Sports Hero Banner */}
+        <SportsBanner
+          image="/images/admin_academy_complex.jpg"
+          alt="Sports Academy Complex"
+          badge="ACADEMY COMMAND CENTER"
+          title="Academy Control Center"
+          subtitle="High-performance athlete monitoring, coaching operations & academy insights"
+          actions={
+            <div className={styles.actionRow}>
+              <Link to="/admin/athletes" className={styles.primaryBtn}>
+                <span>+</span> Register Athlete
+              </Link>
+              <Link to="/admin/training" className={styles.secondaryBtn}>
+                <span>⏱️</span> Schedule Training
+              </Link>
+              <Link to="/admin/tournaments" className={styles.secondaryBtn}>
+                <span>🏆</span> Tournaments
+              </Link>
+              <Link to="/admin/reports" className={styles.secondaryBtn}>
+                <span>📑</span> Full Reports
+              </Link>
+            </div>
+          }
+          metrics={
+            summary ? [
+              { label: 'Active Athletes', value: summary.total_athletes ?? '-' },
+              { label: 'Coaching Staff', value: summary.total_coaches ?? '-' },
+              { label: 'Training Sessions', value: summary.total_training_sessions ?? '-' },
+            ] : undefined
+          }
+        />
 
         {error && (
           <div className={styles.errorBox}>

@@ -228,13 +228,18 @@ async def create_session_service(
                 raise BadRequestError(f"Athlete '{ath['full_name']}' is inactive")
             # If coach, must be assigned to this coach
             if role == "coach":
+                assigned_strs = {str(x) for x in assigned_athlete_ids}
                 is_direct = str(ath.get("coach_id", "")) == data.coach_id
-                is_assigned = ath["_id"] in assigned_athlete_ids
+                is_assigned = str(ath["_id"]) in assigned_strs
                 if not is_direct and not is_assigned:
                     raise ForbiddenError(f"Athlete '{ath['full_name']}' is not assigned to you")
             # Athlete sport validation: must match session sport or be an additional sport
-            ath_sports = [ath.get("sport_id")] + ath.get("additional_sport_ids", [])
-            if sport["_id"] not in ath_sports:
+            ath_sports = {
+                str(sid)
+                for sid in ([ath.get("sport_id")] + (ath.get("additional_sport_ids") or []))
+                if sid is not None and str(sid) not in ("", "None")
+            }
+            if str(sport["_id"]) not in ath_sports:
                 raise BadRequestError(
                     f"Athlete '{ath['full_name']}' does not participate in sport '{sport['name']}'"
                 )
@@ -379,8 +384,9 @@ async def add_participant_service(
     # If coach, must be assigned to this coach
     if role == "coach":
         assigned_ids = await get_coach_assigned_athlete_ids(db, str(session["coach_id"]))
+        assigned_strs = {str(x) for x in assigned_ids}
         is_direct = str(ath.get("coach_id", "")) == str(session["coach_id"])
-        is_assigned = ath["_id"] in assigned_ids
+        is_assigned = str(ath["_id"]) in assigned_strs
         if not is_direct and not is_assigned:
             raise ForbiddenError(f"Athlete '{ath['full_name']}' is not assigned to you")
 
@@ -389,8 +395,12 @@ async def add_participant_service(
         raise ConflictError(f"Athlete '{ath['full_name']}' is already a participant in this session")
 
     # Check sport compatibility
-    ath_sports = [ath.get("sport_id")] + ath.get("additional_sport_ids", [])
-    if session["sport_id"] not in ath_sports:
+    ath_sports = {
+        str(sid)
+        for sid in ([ath.get("sport_id")] + (ath.get("additional_sport_ids") or []))
+        if sid is not None and str(sid) not in ("", "None")
+    }
+    if str(session["sport_id"]) not in ath_sports:
         sport = await db.sports.find_one({"_id": session["sport_id"]})
         sport_name = sport.get("name") if sport else "this sport"
         raise BadRequestError(f"Athlete '{ath['full_name']}' is not registered for {sport_name}")
@@ -522,6 +532,26 @@ async def record_attendance_service(
             )
         except Exception as exc:
             logger.warning("Failed to dispatch attendance notification: %s", exc)
+
+    # Dispatch notification to session coach
+    if session.get("coach_id"):
+        try:
+            from app.services.notification_service import notify_coach_attendance
+            c_doc = await db.coaches.find_one({"_id": session["coach_id"]})
+            if c_doc and c_doc.get("user_id"):
+                s_date = session.get("session_date") or session.get("date")
+                s_date_str = s_date.strftime("%b %d, %Y") if hasattr(s_date, "strftime") else str(s_date)
+                await notify_coach_attendance(
+                    db,
+                    coach_user_id=str(c_doc["user_id"]),
+                    athlete_name=ath_name,
+                    status=record.status,
+                    session_date_str=s_date_str,
+                    session_id=session_id,
+                    athlete_id=str(a_oid),
+                )
+        except Exception as exc:
+            logger.warning("Failed to dispatch coach attendance notification: %s", exc)
 
     return AttendanceResponse(
         id=str(updated_record["_id"]),

@@ -30,18 +30,19 @@ from app.schemas.athlete import (
     AthleteSelfUpdate,
     AthleteUpdate,
 )
+from app.services.notification_service import notify_coach_athlete_assigned
 
 
 async def _resolve_athlete_response(db: AsyncIOMotorDatabase, doc: dict) -> AthleteResponse:
     sport_name = None
     if doc.get("sport_id"):
-        sport = await db.sports.find_one({"_id": doc["sport_id"]})
+        sport = await get_sport_by_id(db, str(doc["sport_id"]))
         if sport:
             sport_name = sport.get("name")
 
     coach_name = None
     if doc.get("coach_id"):
-        coach = await db.coaches.find_one({"_id": doc["coach_id"]})
+        coach = await get_coach_by_id(db, str(doc["coach_id"]))
         if coach:
             coach_name = coach.get("full_name")
 
@@ -237,6 +238,16 @@ async def create_athlete_service(db: AsyncIOMotorDatabase, data: AthleteCreate) 
             {"$set": {"assigned_at": now}},
             upsert=True,
         )
+        if coach and coach.get("user_id"):
+            try:
+                await notify_coach_athlete_assigned(
+                    db,
+                    str(coach["user_id"]),
+                    created.get("full_name") or "Athlete",
+                    str(created["_id"]),
+                )
+            except Exception:
+                pass
 
     return await _resolve_athlete_response(db, created)
 
@@ -265,7 +276,7 @@ async def update_athlete_service(
             sport = await get_sport_by_id(db, raw["sport_id"])
             if not sport:
                 raise BadRequestError(f"Sport ID '{raw['sport_id']}' not found")
-            update_dict["sport_id"] = str(sport["_id"])
+            update_dict["sport_id"] = sport["_id"]
 
         # Validate additional_sport_ids
         if "additional_sport_ids" in raw and raw["additional_sport_ids"] is not None:
@@ -274,7 +285,7 @@ async def update_athlete_service(
                 s = await get_sport_by_id(db, sid)
                 if not s:
                     raise BadRequestError(f"Sport ID '{sid}' not found")
-                valid_adds.append(str(s["_id"]))
+                valid_adds.append(s["_id"])
             update_dict["additional_sport_ids"] = valid_adds
 
         # Validate coach_id if changed
@@ -292,6 +303,16 @@ async def update_athlete_service(
                     "athlete_id": athlete["_id"],
                     "assigned_at": now,
                 })
+                if coach.get("user_id"):
+                    try:
+                        await notify_coach_athlete_assigned(
+                            db,
+                            str(coach["user_id"]),
+                            athlete.get("full_name") or "Athlete",
+                            str(athlete["_id"]),
+                        )
+                    except Exception:
+                        pass
             else:
                 update_dict["coach_id"] = None
                 await db.coach_athlete_assignments.delete_many({"athlete_id": athlete["_id"]})
@@ -340,6 +361,7 @@ async def assign_coach_service(
     if not athlete:
         raise NotFoundError("Athlete not found")
 
+    coach = None
     if coach_id:
         coach = await get_coach_by_id(db, coach_id)
         if not coach:
@@ -348,6 +370,16 @@ async def assign_coach_service(
             raise BadRequestError("Coach is not active")
 
     updated = await repo_set_athlete_coach(db, athlete_id, coach_id)
+    if coach and coach.get("user_id"):
+        try:
+            await notify_coach_athlete_assigned(
+                db,
+                str(coach["user_id"]),
+                athlete.get("full_name") or "Athlete",
+                str(athlete["_id"]),
+            )
+        except Exception:
+            pass
     return await _resolve_athlete_response(db, updated)
 
 
@@ -369,10 +401,10 @@ async def assign_sport_service(
         s = await get_sport_by_id(db, sid)
         if not s:
             raise BadRequestError(f"Sport ID '{sid}' not found")
-        add_oids.append(str(s["_id"]))
+        add_oids.append(s["_id"])
 
     update_dict = {
-        "sport_id": str(sport["_id"]),
+        "sport_id": sport["_id"],
         "additional_sport_ids": add_oids,
     }
     updated = await repo_update_athlete(db, athlete_id, update_dict)

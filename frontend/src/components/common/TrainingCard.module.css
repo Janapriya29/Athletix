@@ -11,8 +11,8 @@
 
 .card:hover {
   transform: translateY(-2px);
-  border-color: rgba(34, 197, 94, 0.35);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 8px 24px rgba(255, 90, 31, 0.15);
 }
 
 .header {
@@ -29,8 +29,8 @@
 
 .title {
   font-size: var(--text-base);
-  font-weight: 600;
-  color: #ffffff;
+  font-weight: 700;
+  color: var(--color-near-black, #171717);
   margin: 0;
 }
 
@@ -83,11 +83,12 @@
 }
 
 .timePill {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--color-surface-2);
   padding: 1px 6px;
   border-radius: 4px;
-  color: #e2e8f0;
+  color: var(--color-text);
   font-weight: 500;
+  border: 1px solid var(--color-border);
 }
 
 .footer {
@@ -95,7 +96,7 @@
   align-items: center;
   justify-content: space-between;
   padding-top: var(--space-2);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--color-border);
   margin-top: auto;
 }
 
@@ -105,7 +106,7 @@
 }
 
 .participants strong {
-  color: #ffffff;
+  color: var(--color-near-black, #171717);
 }
 
 .actions {
@@ -124,11 +125,11 @@
 
 .btnAction {
   background: var(--color-accent);
-  color: #0b1329;
+  color: var(--color-accent-contrast, #ffffff);
 }
 
 .btnAction:hover {
-  background: var(--color-accent-dim);
+  background: var(--color-accent-hover, #FF6E38);
 }
 
 .btnSecondary {
@@ -138,5 +139,6 @@
 }
 
 .btnSecondary:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-hover, #EAE7E1);
+  border-color: var(--color-border);
 }

@@ -11,6 +11,7 @@ import {
   getMyTrainingSessions,
   getMyAttendanceSummary,
 } from '../../services/trainingService'
+import SportsBanner from '../../components/common/SportsBanner'
 import styles from './AthleteDashboard.module.css'
 
 export default function AthleteDashboard() {
@@ -62,36 +63,50 @@ export default function AthleteDashboard() {
   return (
     <AppLayout title="Athlete Performance Hub">
       <div className={styles.dashboard}>
-        {/* Header Bar */}
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1>Welcome back, {analytics?.athlete_name || 'Athlete'}</h1>
-            <div className={styles.pillsRow}>
-              <span className={styles.sportPill}>
-                🏅 {analytics?.sport_name || 'Athletix Academy'}
-              </span>
-              {analytics?.coach_name && (
-                <span className={styles.coachPill}>
-                  🧢 Coach: {analytics.coach_name}
-                </span>
-              )}
+        {/* Sports Hero Banner */}
+        <SportsBanner
+          image="/images/athlete_track_sprint.jpg"
+          alt="Athlete Track Sprint"
+          badge="ATHLETE PERFORMANCE HUB"
+          title={`Welcome back, ${analytics?.athlete_name || 'Athlete'}`}
+          subtitle={
+            analytics?.sport_name
+              ? `${analytics.sport_name} Squad ${analytics.coach_name ? `• Coach: ${analytics.coach_name}` : ''}`
+              : 'Track assessment history, attendance status, and tournament milestones'
+          }
+          actions={
+            <div className={styles.actionRow}>
+              <Link to="/athlete/training" className={styles.primaryBtn}>
+                <span>⏱️</span> View Sessions
+              </Link>
+              <Link to="/athlete/attendance" className={styles.secondaryBtn}>
+                <span>📋</span> Attendance Record
+              </Link>
+              <Link to="/athlete/analytics" className={styles.secondaryBtn}>
+                <span>📈</span> Detailed Analytics
+              </Link>
+              <Link to="/athlete/reports" className={styles.secondaryBtn}>
+                <span>📑</span> My Reports
+              </Link>
             </div>
-          </div>
-          <div className={styles.actionRow}>
-            <Link to="/athlete/training" className={styles.primaryBtn}>
-              <span>⏱️</span> View Sessions
-            </Link>
-            <Link to="/athlete/attendance" className={styles.secondaryBtn}>
-              <span>📋</span> Attendance Record
-            </Link>
-            <Link to="/athlete/analytics" className={styles.secondaryBtn}>
-              <span>📈</span> Detailed Analytics
-            </Link>
-            <Link to="/athlete/reports" className={styles.secondaryBtn}>
-              <span>📑</span> My Reports
-            </Link>
-          </div>
-        </div>
+          }
+          metrics={
+            analytics ? [
+              {
+                label: 'Overall Score',
+                value: currentScore !== undefined && currentScore !== null ? `${currentScore}/100` : '-',
+              },
+              {
+                label: 'Attendance Rate',
+                value: attRate !== undefined && attRate !== null ? `${attRate}%` : '-',
+              },
+              {
+                label: 'Assessments',
+                value: history.length > 0 ? history.length : '0',
+              },
+            ] : undefined
+          }
+        />
 
         {/* Low Attendance Alert */}
         {isAttendanceWarning && (

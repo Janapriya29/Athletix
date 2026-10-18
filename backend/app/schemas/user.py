@@ -32,6 +32,7 @@ class UserCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=128)
     password: str = Field(min_length=8, max_length=128)
     role: str = Field(pattern="^(admin|coach|athlete)$")
+    is_active: Optional[bool] = True
 
 
 class UserUpdate(BaseModel):

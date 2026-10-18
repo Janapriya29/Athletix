@@ -23,7 +23,7 @@ class PerformanceRankingItem(BaseModel):
     athlete_name: str
     sport_id: Optional[str] = None
     sport_name: Optional[str] = None
-    performance_score: float
+    performance_score: Optional[float] = None
     assessment_date: Optional[datetime] = None
 
 
@@ -33,9 +33,9 @@ class AttendanceRankingItem(BaseModel):
     athlete_name: str
     sport_id: Optional[str] = None
     sport_name: Optional[str] = None
-    attendance_percentage: float
-    total_sessions: int
-    attended_sessions: int
+    attendance_percentage: Optional[float] = 0.0
+    total_sessions: int = 0
+    attended_sessions: int = 0
 
 
 class ImprovementRankingItem(BaseModel):

@@ -29,7 +29,7 @@ const NAV_ITEMS = {
     { label: 'Tournaments', path: '/coach/tournaments', icon: '🏆' },
     { label: 'Rankings',    path: '/coach/rankings',    icon: '🥇' },
     { label: 'Reports',     path: '/coach/reports',     icon: '📑' },
-    { label: 'Notifications', path: '/notifications',   icon: '🔔' },
+    { label: 'Notifications', path: '/coach/notifications', icon: '🔔' },
   ],
   athlete: [
     { label: 'Dashboard',    path: '/athlete/dashboard',   icon: '📊' },
@@ -40,7 +40,7 @@ const NAV_ITEMS = {
     { label: 'Tournaments',  path: '/athlete/tournaments', icon: '🏆' },
     { label: 'Rankings',     path: '/athlete/rankings',    icon: '🥇' },
     { label: 'Reports',      path: '/athlete/reports',     icon: '📑' },
-    { label: 'Notifications',path: '/notifications',       icon: '🔔' },
+    { label: 'Notifications',path: '/athlete/notifications', icon: '🔔' },
   ],
 }
 

@@ -3,6 +3,7 @@ import AppLayout from '../../layouts/AppLayout'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorMessage from '../../components/common/ErrorMessage'
 import StatCard from '../../components/common/StatCard'
+import SportsBanner from '../../components/common/SportsBanner'
 import styles from '../../styles/Management.module.css'
 import {
   getTournaments,
@@ -138,15 +139,53 @@ export default function CoachTournamentsPage() {
     }
   }
 
+  const computeDefaultPoints = (pos, medal) => {
+    const p = parseInt(pos, 10)
+    const m = (medal || '').trim().toLowerCase()
+    if (p === 1 || m === 'gold') return 10.0
+    if (p === 2 || m === 'silver') return 7.0
+    if (p === 3 || m === 'bronze') return 5.0
+    if (!isNaN(p) && p >= 4 && p <= 10) return Math.max(1, 11 - p)
+    return null
+  }
+
   const handleSelectResultForEdit = (p) => {
     setSelectedResultPart(p)
+    const existingPts = p.points !== null && p.points !== undefined ? String(p.points) : ''
     setResultForm({
       position: p.position || '',
       score: p.score || '',
-      points: p.points || '',
+      points: existingPts,
       medal: p.medal || '',
       remarks: p.remarks || '',
+      isCustomPoints: Boolean(existingPts),
     })
+  }
+
+  const handlePositionChange = (val) => {
+    const p = parseInt(val, 10)
+    let newMedal = resultForm.medal
+    if (!resultForm.medal || resultForm.medal === 'None') {
+      if (p === 1) newMedal = 'Gold'
+      else if (p === 2) newMedal = 'Silver'
+      else if (p === 3) newMedal = 'Bronze'
+    }
+    const autoPts = computeDefaultPoints(val, newMedal)
+    setResultForm((prev) => ({
+      ...prev,
+      position: val,
+      medal: newMedal,
+      points: !prev.isCustomPoints ? (autoPts !== null ? String(autoPts) : '') : prev.points,
+    }))
+  }
+
+  const handleMedalChange = (val) => {
+    const autoPts = computeDefaultPoints(resultForm.position, val)
+    setResultForm((prev) => ({
+      ...prev,
+      medal: val,
+      points: !prev.isCustomPoints ? (autoPts !== null ? String(autoPts) : '') : prev.points,
+    }))
   }
 
   const handleSaveResult = async (e) => {
@@ -178,6 +217,20 @@ export default function CoachTournamentsPage() {
   return (
     <AppLayout title="Coach Tournaments">
       <div className={styles.container}>
+        {/* Tournament Championship Hero Banner */}
+        <SportsBanner
+          image="/images/tournament_championship_arena.jpg"
+          alt="Tournament Championship Arena"
+          badge="COACH TOURNAMENT SQUAD"
+          title="Squad Tournaments & Competitions"
+          subtitle="Register assigned athletes for upcoming fixtures, track live brackets, and submit results"
+          metrics={[
+            { label: 'Available Tournaments', value: tournaments.length },
+            { label: 'My Assigned Athletes', value: myAthletes.length },
+            { label: 'Active / Ongoing', value: tournaments.filter((t) => t.status === 'ongoing').length },
+          ]}
+        />
+
         {/* Stat Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <StatCard title="Available Tournaments" value={tournaments.length} icon="🏆" />
@@ -330,44 +383,114 @@ export default function CoachTournamentsPage() {
                 <button onClick={() => setShowRegisterModal(false)} style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
               </div>
 
-              <form onSubmit={handleRegisterAthlete} style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                <select
-                  required
-                  className={styles.selectInput}
-                  style={{ flex: 1, minWidth: '180px' }}
-                  value={registerAthleteId}
-                  onChange={(e) => setRegisterAthleteId(e.target.value)}
-                >
-                  <option value="">Select Assigned Athlete...</option>
-                  {myAthletes
-                    .filter((a) => {
-                      const tSp = String(activeTournament.sport_id)
-                      const aSp = String(a.sport_id)
-                      const extra = (a.additional_sport_ids || []).map(String)
-                      const isSportMatch = aSp === tSp || extra.includes(tSp)
-                      const alreadyIn = participants.some((p) => p.athlete_id === (a._id || a.id))
-                      return isSportMatch && !alreadyIn
-                    })
-                    .map((a) => (
-                      <option key={a._id || a.id} value={a._id || a.id}>
-                        {a.full_name} ({a.email})
-                      </option>
-                    ))}
-                </select>
+              {(() => {
+                const tSp = String(activeTournament.sport_id || '')
+                const sportMatchingAthletes = myAthletes.filter((a) => {
+                  const aSp = String(a.sport_id || '')
+                  const extra = (a.additional_sport_ids || []).map(String)
+                  return Boolean(tSp && (aSp === tSp || extra.includes(tSp)))
+                })
+                const eligibleAthletes = sportMatchingAthletes.filter((a) => {
+                  const aId = String(a._id || a.id || '')
+                  return !participants.some((p) => String(p.athlete_id) === aId)
+                })
+                const hasNoAssigned = myAthletes.length === 0
+                const noMatchingSport = !hasNoAssigned && sportMatchingAthletes.length === 0
+                const allAlreadyRegistered = !hasNoAssigned && !noMatchingSport && eligibleAthletes.length === 0
 
-                <input
-                  type="text"
-                  placeholder="Event / Category"
-                  className={styles.searchInput}
-                  style={{ flex: 1, minWidth: '150px' }}
-                  value={registerEvent}
-                  onChange={(e) => setRegisterEvent(e.target.value)}
-                />
+                return (
+                  <div>
+                    {hasNoAssigned && (
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          marginBottom: '12px',
+                          borderRadius: 'var(--radius-sm, 6px)',
+                          backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                          border: '1px solid rgba(234, 179, 8, 0.3)',
+                          color: '#eab308',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        ⚠️ You currently have no athletes assigned to you.
+                      </div>
+                    )}
+                    {noMatchingSport && (
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          marginBottom: '12px',
+                          borderRadius: 'var(--radius-sm, 6px)',
+                          backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                          border: '1px solid rgba(234, 179, 8, 0.3)',
+                          color: '#eab308',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        ⚠️ None of your assigned athletes have {activeTournament.sport_name || 'this sport'} assigned as their primary or additional sport.
+                      </div>
+                    )}
+                    {allAlreadyRegistered && (
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          marginBottom: '12px',
+                          borderRadius: 'var(--radius-sm, 6px)',
+                          backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          color: '#38bdf8',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        ℹ️ All of your eligible assigned athletes ({sportMatchingAthletes.length}) are already registered for this tournament.
+                      </div>
+                    )}
+                    <form onSubmit={handleRegisterAthlete} style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                      <select
+                        required
+                        className={styles.selectInput}
+                        style={{ flex: 1, minWidth: '180px' }}
+                        value={registerAthleteId}
+                        onChange={(e) => setRegisterAthleteId(e.target.value)}
+                        disabled={eligibleAthletes.length === 0}
+                      >
+                        <option value="">
+                          {eligibleAthletes.length === 0
+                            ? (hasNoAssigned
+                                ? 'No assigned athletes'
+                                : noMatchingSport
+                                ? 'No assigned athletes for this sport'
+                                : 'All eligible athletes registered')
+                            : 'Select Assigned Athlete...'}
+                        </option>
+                        {eligibleAthletes.map((a) => (
+                          <option key={a._id || a.id} value={a._id || a.id}>
+                            {a.full_name} ({a.email})
+                          </option>
+                        ))}
+                      </select>
 
-                <button type="submit" className={styles.primaryBtn}>
-                  Register
-                </button>
-              </form>
+                      <input
+                        type="text"
+                        placeholder="Event / Category"
+                        className={styles.searchInput}
+                        style={{ flex: 1, minWidth: '150px' }}
+                        value={registerEvent}
+                        onChange={(e) => setRegisterEvent(e.target.value)}
+                        disabled={eligibleAthletes.length === 0}
+                      />
+
+                      <button
+                        type="submit"
+                        className={styles.primaryBtn}
+                        disabled={eligibleAthletes.length === 0 || !registerAthleteId}
+                      >
+                        Register
+                      </button>
+                    </form>
+                  </div>
+                )
+              })()}
 
               {partLoading ? (
                 <LoadingSpinner />
@@ -445,7 +568,7 @@ export default function CoachTournamentsPage() {
                         placeholder="1, 2, 3..."
                         className={styles.input}
                         value={resultForm.position}
-                        onChange={(e) => setResultForm({ ...resultForm, position: e.target.value })}
+                        onChange={(e) => handlePositionChange(e.target.value)}
                       />
                     </div>
                     <div className={styles.formGroup}>
@@ -459,12 +582,32 @@ export default function CoachTournamentsPage() {
                       />
                     </div>
                     <div className={styles.formGroup}>
-                      <label className={styles.label}>Medal</label>
+                      <label className={styles.label}>
+                        Points {computeDefaultPoints(resultForm.position, resultForm.medal) !== null && (
+                          <span style={{ color: 'var(--color-accent)', fontSize: '0.75rem', fontWeight: 'normal' }}>
+                            (Auto: {computeDefaultPoints(resultForm.position, resultForm.medal)} pts)
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        placeholder={computeDefaultPoints(resultForm.position, resultForm.medal) !== null ? `Auto: ${computeDefaultPoints(resultForm.position, resultForm.medal)}` : 'Auto if empty'}
+                        className={styles.input}
+                        value={resultForm.points}
+                        onChange={(e) => setResultForm({ ...resultForm, points: e.target.value, isCustomPoints: true })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Medal (Auto if 1-3)</label>
                       <select
                         className={styles.selectInput}
                         style={{ width: '100%' }}
                         value={resultForm.medal}
-                        onChange={(e) => setResultForm({ ...resultForm, medal: e.target.value })}
+                        onChange={(e) => handleMedalChange(e.target.value)}
                       >
                         <option value="">Auto by position</option>
                         <option value="Gold">🥇 Gold</option>
@@ -473,17 +616,16 @@ export default function CoachTournamentsPage() {
                         <option value="None">None</option>
                       </select>
                     </div>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Remarks</label>
-                    <input
-                      type="text"
-                      placeholder="Performance notes..."
-                      className={styles.input}
-                      value={resultForm.remarks}
-                      onChange={(e) => setResultForm({ ...resultForm, remarks: e.target.value })}
-                    />
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Remarks</label>
+                      <input
+                        type="text"
+                        placeholder="Performance notes..."
+                        className={styles.input}
+                        value={resultForm.remarks}
+                        onChange={(e) => setResultForm({ ...resultForm, remarks: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className={styles.formActions}>

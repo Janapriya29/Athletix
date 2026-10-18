@@ -77,15 +77,16 @@ async def list_user_notifications(
     skip: int = 0,
     limit: int = 50,
 ) -> list[dict]:
+    user_matches = [str(user_id)]
     try:
-        u_oid = ObjectId(user_id)
+        user_matches.append(ObjectId(user_id))
     except Exception:
-        return []
+        pass
 
     query: dict = {
         "$or": [
-            {"recipient_user_id": u_oid},
-            {"user_id": u_oid},
+            {"recipient_user_id": {"$in": user_matches}},
+            {"user_id": {"$in": user_matches}},
         ]
     }
     if unread_only:
@@ -102,15 +103,16 @@ async def count_unread_notifications(
     db: AsyncIOMotorDatabase,
     user_id: str,
 ) -> int:
+    user_matches = [str(user_id)]
     try:
-        u_oid = ObjectId(user_id)
+        user_matches.append(ObjectId(user_id))
     except Exception:
-        return 0
+        pass
 
     query = {
         "$or": [
-            {"recipient_user_id": u_oid},
-            {"user_id": u_oid},
+            {"recipient_user_id": {"$in": user_matches}},
+            {"user_id": {"$in": user_matches}},
         ],
         "is_read": False,
     }
@@ -138,17 +140,18 @@ async def mark_all_as_read(
     db: AsyncIOMotorDatabase,
     user_id: str,
 ) -> int:
+    user_matches = [str(user_id)]
     try:
-        u_oid = ObjectId(user_id)
+        user_matches.append(ObjectId(user_id))
     except Exception:
-        return 0
+        pass
 
     now = datetime.now(timezone.utc)
     result = await db.notifications.update_many(
         {
             "$or": [
-                {"recipient_user_id": u_oid},
-                {"user_id": u_oid},
+                {"recipient_user_id": {"$in": user_matches}},
+                {"user_id": {"$in": user_matches}},
             ],
             "is_read": False,
         },

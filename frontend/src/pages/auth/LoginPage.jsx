@@ -27,19 +27,28 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const user = await login(email.trim(), password)
+      const cleanEmail = email.trim().toLowerCase()
+      const user = await login(cleanEmail, password)
       const dashboards = {
         admin: '/admin/dashboard',
         coach: '/coach/dashboard',
         athlete: '/athlete/dashboard',
       }
-      navigate(from || dashboards[user.role] || '/admin/dashboard', { replace: true })
+      const targetPath = (from && from !== '/' && from !== '/login' && from !== '/register')
+        ? from
+        : (dashboards[user.role] || '/admin/dashboard')
+      navigate(targetPath, { replace: true })
     } catch (err) {
       const status = err.response?.status
       const detail = err.response?.data?.detail
 
       if (status === 401) {
-        if (typeof detail === 'string' && detail.toLowerCase().includes('inactive')) {
+        if (
+          typeof detail === 'string' &&
+          (detail.toLowerCase().includes('inactive') ||
+            detail.toLowerCase().includes('pending') ||
+            detail.toLowerCase().includes('approval'))
+        ) {
           setError(
             'Your account is currently pending approval or inactive. Please contact your academy administrator.'
           )

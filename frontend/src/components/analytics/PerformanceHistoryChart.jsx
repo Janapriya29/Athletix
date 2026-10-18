@@ -78,8 +78,8 @@ export default function PerformanceHistoryChart({ history = [] }) {
       >
         <defs>
           <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="var(--color-accent, #22c55e)" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="var(--color-accent, #22c55e)" stopOpacity="0.0" />
+            <stop offset="0%" stopColor="var(--color-accent, #FF5A1F)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="var(--color-accent, #FF5A1F)" stopOpacity="0.0" />
           </linearGradient>
         </defs>
 
@@ -93,7 +93,7 @@ export default function PerformanceHistoryChart({ history = [] }) {
                 y1={y}
                 x2={width - paddingX}
                 y2={y}
-                stroke="var(--color-border, #2d3748)"
+                stroke="var(--color-border, #E5E5E5)"
                 strokeDasharray="4 4"
                 strokeWidth="1"
               />
@@ -102,7 +102,7 @@ export default function PerformanceHistoryChart({ history = [] }) {
                 y={y + 4}
                 textAnchor="end"
                 fontSize="10"
-                fill="var(--color-text-muted, #718096)"
+                fill="var(--color-text-muted, #6B7280)"
               >
                 {gl}
               </text>
@@ -117,7 +117,7 @@ export default function PerformanceHistoryChart({ history = [] }) {
         <path
           d={pathD}
           fill="none"
-          stroke="var(--color-accent, #22c55e)"
+          stroke="var(--color-accent, #FF5A1F)"
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -130,8 +130,8 @@ export default function PerformanceHistoryChart({ history = [] }) {
               cx={pt.x}
               cy={pt.y}
               r="5"
-              fill="var(--color-surface, #1a202c)"
-              stroke="var(--color-accent, #22c55e)"
+              fill="var(--color-surface, #FFFFFF)"
+              stroke="var(--color-accent, #FF5A1F)"
               strokeWidth="3"
             />
             {/* Score label above point */}

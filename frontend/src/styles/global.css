@@ -1,6 +1,9 @@
 /* =========================================
    Athletix — Global Stylesheet
-   Theme: dark navy/charcoal + green accent
+   Theme: Arena — Bold & Energetic
+   Palette: White (#FFFFFF), Near-Black (#171717),
+            Vivid Arena Orange (#FF5A1F), Warm Grey (#F1EFEB),
+            Secondary Grey (#6B7280), Light Borders (#E5E5E5)
    ========================================= */
 
 *, *::before, *::after {
@@ -10,18 +13,28 @@
 }
 
 :root {
-  /* Colors */
-  --color-bg:         #0f1117;
-  --color-surface:    #1a1d27;
-  --color-surface-2:  #222536;
-  --color-border:     #2e3247;
-  --color-accent:     #22c55e;
-  --color-accent-dim: #16a34a;
-  --color-text:       #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-error:      #ef4444;
-  --color-warning:    #f59e0b;
-  --color-info:       #3b82f6;
+  /* Colors — Arena Identity */
+  --color-bg:              #F1EFEB; /* Warm grey base surface */
+  --color-surface:         #FFFFFF; /* Pure white content card */
+  --color-surface-2:       #F8F7F4; /* Subtle warm tint for pills/badges */
+  --color-surface-hover:   #EAE7E1; /* Warm grey hover */
+  --color-border:          #E5E5E5; /* Light border */
+  --color-border-subtle:   #ECE9E3;
+  --color-accent:          #FF5A1F; /* Vivid Arena Orange */
+  --color-accent-dim:      #E04B14;
+  --color-accent-hover:    #FF6E38;
+  --color-accent-contrast: #FFFFFF; /* High-contrast white on orange */
+  --color-near-black:      #171717; /* Near-black for strong typography & nav */
+  --color-text:            #171717; /* Bold primary typography */
+  --color-text-muted:      #6B7280; /* Secondary grey */
+  --color-error:           #EF4444;
+  --color-warning:         #F59E0B;
+  --color-info:            #3B82F6;
+
+  /* Medal Accents */
+  --color-medal-gold:      #F59E0B;
+  --color-medal-silver:    #9CA3AF;
+  --color-medal-bronze:    #B45309;
 
   /* Spacing */
   --space-1: 4px;
@@ -33,25 +46,31 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  /* Typography */
-  --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  /* Typography — Bold Athletic Editorial Hierarchy */
+  --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --text-xs:   0.75rem;
-  --text-sm:   0.875rem;
-  --text-base: 1rem;
-  --text-lg:   1.125rem;
-  --text-xl:   1.25rem;
-  --text-2xl:  1.5rem;
-  --text-3xl:  1.875rem;
+  --font-h1:   clamp(2rem, 3.5vw, 2.5rem);      /* 32–40px main page headings */
+  --font-h2:   clamp(1.375rem, 2.5vw, 1.75rem); /* 22–28px section headings */
+  --stat-value: clamp(2rem, 3.5vw, 2.75rem);    /* 32–44px key statistics */
+  --text-xs:   0.8125rem;                       /* 13px */
+  --text-sm:   0.9375rem;                       /* 15px table/meta (15–16px) */
+  --text-base: 1.0625rem;                       /* ~17px body & inputs (16–18px) */
+  --text-lg:   1.1875rem;                       /* ~19px */
+  --text-xl:   1.375rem;                        /* 22px */
+  --text-2xl:  1.625rem;                        /* 26px */
+  --text-3xl:  2.25rem;                         /* 36px */
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius:    8px;
-  --radius-lg: 12px;
+  /* Radius & Shadows */
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(23, 23, 23, 0.05);
+  --shadow:    0 4px 10px -1px rgba(23, 23, 23, 0.07), 0 2px 4px -2px rgba(23, 23, 23, 0.04);
+  --shadow-lg: 0 12px 28px -4px rgba(23, 23, 23, 0.09), 0 4px 8px -4px rgba(23, 23, 23, 0.03);
 
-  /* Sidebar */
-  --sidebar-width: 240px;
-  --topbar-height: 60px;
+  /* Sidebar & Topbar */
+  --sidebar-width: 250px;
+  --topbar-height: 64px;
 
   /* Transitions */
   --transition: 150ms ease;

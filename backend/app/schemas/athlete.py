@@ -68,7 +68,7 @@ class AthleteResponse(BaseModel):
     phone: Optional[str] = None
     date_of_birth: Optional[datetime] = None
     gender: Optional[str] = None
-    sport_id: str
+    sport_id: Optional[str] = ""
     sport_name: Optional[str] = None
     additional_sport_ids: list[str] = []
     coach_id: Optional[str] = None
@@ -89,7 +89,10 @@ class AthleteResponse(BaseModel):
     ) -> "AthleteResponse":
         additional_ids = [
             str(sid) for sid in doc.get("additional_sport_ids", [])
+            if sid and str(sid) != "None"
         ]
+        sport_val = doc.get("sport_id")
+        sport_str = str(sport_val) if sport_val and str(sport_val) != "None" else ""
         return cls(
             id=str(doc["_id"]),
             user_id=str(doc.get("user_id", "")),
@@ -98,7 +101,7 @@ class AthleteResponse(BaseModel):
             phone=doc.get("phone"),
             date_of_birth=doc.get("date_of_birth"),
             gender=doc.get("gender"),
-            sport_id=str(doc.get("sport_id", "")),
+            sport_id=sport_str,
             sport_name=sport_name,
             additional_sport_ids=additional_ids,
             coach_id=str(doc["coach_id"]) if doc.get("coach_id") else None,

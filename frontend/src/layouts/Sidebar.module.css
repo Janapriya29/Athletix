@@ -105,16 +105,16 @@
 }
 
 .navItem.active {
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0.12) 0%, rgba(34, 197, 94, 0.03) 100%);
+  background: linear-gradient(90deg, rgba(255, 90, 31, 0.12) 0%, rgba(255, 90, 31, 0.03) 100%);
   color: var(--color-accent);
   border-left-color: var(--color-accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .footer {
   padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--color-border);
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--color-surface-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -127,17 +127,18 @@
 }
 
 .userAvatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #22c55e, #15803d);
-  color: #000;
+  background: linear-gradient(135deg, #FF5A1F, #E04B14);
+  color: #FFFFFF;
   font-weight: 800;
   font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(255, 90, 31, 0.35);
 }
 
 .userInfo {

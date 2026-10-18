@@ -34,3 +34,9 @@ export const addSportCategory = async (sportId, data) => {
   const resp = await api.post(`/sports/${sportId}/categories`, data)
   return resp.data
 }
+
+export const getSportCategories = async (sportId) => {
+  const resp = await api.get(`/sports/${sportId}/categories`)
+  return resp.data
+}
+

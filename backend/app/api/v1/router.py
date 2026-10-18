@@ -12,6 +12,7 @@ from app.api.v1.endpoints.notifications import router as notifications_router
 from app.api.v1.endpoints.rankings import router as rankings_router
 from app.api.v1.endpoints.reports import router as reports_router
 from app.api.v1.endpoints.tournaments import router as tournaments_router
+from app.api.v1.endpoints.assessments import router as assessments_router
 
 api_router = APIRouter()
 
@@ -22,9 +23,11 @@ api_router.include_router(sports_router)
 api_router.include_router(coaches_router)
 api_router.include_router(athletes_router)
 api_router.include_router(training_router)
+api_router.include_router(assessments_router)
 api_router.include_router(analytics_router)
 api_router.include_router(tournaments_router)
 api_router.include_router(rankings_router)
 api_router.include_router(notifications_router)
 api_router.include_router(reports_router)
+
 

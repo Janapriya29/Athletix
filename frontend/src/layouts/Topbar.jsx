@@ -89,7 +89,13 @@ export default function Topbar({ title, onToggleMenu }) {
 
   function handleGoToNotifications() {
     setDropdownOpen(false)
-    navigate('/notifications')
+    if (user?.role === 'coach') {
+      navigate('/coach/notifications')
+    } else if (user?.role === 'athlete') {
+      navigate('/athlete/notifications')
+    } else {
+      navigate('/notifications')
+    }
   }
 
   const userInitial = (user?.full_name || user?.email || 'U').charAt(0).toUpperCase()

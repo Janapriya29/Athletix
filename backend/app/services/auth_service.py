@@ -17,16 +17,31 @@ from app.schemas.auth import RegisterRequest, RegisterResponse, TokenResponse
 from app.schemas.user import UserResponse
 
 
+# A precomputed valid bcrypt hash used to normalize execution time when an account is not found,
+# preventing timing-based account enumeration.
+_DUMMY_BCRYPT_HASH = "$2b$12$e8Yh75h0u7ZJb1kUqvUuCOq1Cq0X.9qC97aU7N6n8N6q2Yn5q7h2m"
+
+
 async def login_user(db: AsyncIOMotorDatabase, email: str, password: str) -> TokenResponse:
     """Validate credentials and return a JWT token."""
-    user = await get_user_by_email(db, email)
+    clean_email = email.strip().lower() if isinstance(email, str) else ""
+    user = await get_user_by_email(db, clean_email)
 
-    # Use a consistent error for both wrong email and wrong password
-    # to avoid leaking which field was incorrect (timing-safe messaging)
-    if user is None or not verify_password(password, user["hashed_password"]):
+    # Use a consistent error and constant-time bcrypt verification
+    # to avoid leaking whether the email exists (timing attack mitigation)
+    if user is None:
+        verify_password(password, _DUMMY_BCRYPT_HASH)
         raise UnauthorizedError("Invalid email or password")
 
-    if not user.get("is_active", True):
+    if not verify_password(password, user.get("hashed_password", "")):
+        raise UnauthorizedError("Invalid email or password")
+
+    if not user.get("is_active", True) or user.get("status") in [
+        "inactive",
+        "pending_approval",
+        "suspended",
+        "rejected",
+    ]:
         raise UnauthorizedError("Account is inactive")
 
     token = create_access_token(
@@ -74,7 +89,8 @@ async def register_user(db: AsyncIOMotorDatabase, data: RegisterRequest) -> Regi
     - Coach: Inactive pending Admin approval, coach record created.
     - Admin: Inactive pending approval; arbitrary public admin escalation prevented.
     """
-    existing = await get_user_by_email(db, data.email)
+    clean_email = data.email.strip().lower()
+    existing = await get_user_by_email(db, clean_email)
     if existing:
         raise ConflictError("A user with this email already exists")
 
@@ -98,11 +114,12 @@ async def register_user(db: AsyncIOMotorDatabase, data: RegisterRequest) -> Regi
 
     user_doc = await create_user(
         db,
-        email=data.email,
-        full_name=data.full_name,
+        email=clean_email,
+        full_name=data.full_name.strip(),
         plain_password=data.password,
         role=role,
         is_active=is_active,
+        status=status,
     )
 
     if role == "athlete":

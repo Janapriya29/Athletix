@@ -13,13 +13,18 @@ async def get_athlete_assessments(
     Get all performance assessments for an athlete.
     Default sort is descending by date (latest first).
     """
+    matches = [str(athlete_id)]
     try:
-        a_oid = ObjectId(athlete_id)
+        matches.append(ObjectId(athlete_id))
     except Exception:
-        return []
+        pass
 
     sort_order = 1 if sort_ascending else -1
-    cursor = db.performance_assessments.find({"athlete_id": a_oid}).sort("date", sort_order)
+    cursor = db.performance_assessments.find({"athlete_id": {"$in": matches}}).sort([
+        ("date", sort_order),
+        ("assessment_date", sort_order),
+        ("created_at", sort_order),
+    ])
     return await cursor.to_list(length=1000)
 
 
@@ -30,10 +35,12 @@ async def count_total_assessments(
     """Count total performance assessments, optionally filtered by sport."""
     query = {}
     if sport_id:
+        matches = [str(sport_id)]
         try:
-            query["sport_id"] = ObjectId(sport_id)
+            matches.append(ObjectId(sport_id))
         except Exception:
-            return 0
+            pass
+        query["sport_id"] = {"$in": matches}
     return await db.performance_assessments.count_documents(query)
 
 

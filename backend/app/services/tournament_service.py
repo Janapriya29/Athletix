@@ -38,6 +38,7 @@ from app.schemas.tournament import (
     TournamentCreate,
     TournamentResponse,
     TournamentUpdate,
+    calculate_tournament_points,
 )
 
 logger = logging.getLogger(__name__)
@@ -289,8 +290,9 @@ async def add_participant_service(
         if not coach:
             raise ForbiddenError("Coach profile not found")
         assigned_ids = await get_coach_assigned_athlete_ids(db, str(coach["_id"]))
+        assigned_strs = {str(x) for x in assigned_ids}
         is_direct = str(athlete.get("coach_id", "")) == str(coach["_id"])
-        is_assigned = athlete["_id"] in assigned_ids
+        is_assigned = str(athlete["_id"]) in assigned_strs
         if not is_direct and not is_assigned:
             raise ForbiddenError("You can only register athletes assigned to you")
 
@@ -298,10 +300,13 @@ async def add_participant_service(
         raise ForbiddenError("Insufficient permissions")
 
     # Sport compatibility check
-    t_sport_id = tournament.get("sport_id")
-    a_sport_id = athlete.get("sport_id")
-    a_extra_sports = athlete.get("additional_sport_ids", [])
-    if a_sport_id != t_sport_id and t_sport_id not in a_extra_sports:
+    t_sport_str = str(tournament.get("sport_id", ""))
+    ath_sports_str = {
+        str(sid)
+        for sid in ([athlete.get("sport_id")] + (athlete.get("additional_sport_ids") or []))
+        if sid is not None and str(sid) not in ("", "None")
+    }
+    if not t_sport_str or t_sport_str not in ath_sports_str:
         raise BadRequestError("Athlete sport does not match tournament sport")
 
     # Duplicate check
@@ -329,7 +334,26 @@ async def add_participant_service(
         except Exception as exc:
             logger.warning("Failed to dispatch tournament registration notification: %s", exc)
 
-    sport = await get_sport_by_id(db, str(t_sport_id))
+    # Notify assigned coaches
+    try:
+        from app.services.notification_service import (
+            get_coach_user_ids_for_athlete,
+            notify_coach_tournament_registration,
+        )
+        coach_uids = await get_coach_user_ids_for_athlete(db, athlete)
+        for c_uid in coach_uids:
+            await notify_coach_tournament_registration(
+                db,
+                coach_user_id=c_uid,
+                athlete_name=athlete.get("full_name", "Athlete"),
+                tournament_name=tournament.get("name", "Tournament"),
+                tournament_id=tournament_id,
+                athlete_id=athlete_id,
+            )
+    except Exception as exc:
+        logger.warning("Failed to dispatch coach tournament registration notification: %s", exc)
+
+    sport = await get_sport_by_id(db, t_sport_str)
     return ParticipantResponse(
         id=str(added["_id"]),
         tournament_id=tournament_id,
@@ -468,11 +492,26 @@ async def record_tournament_result_service(
         if not is_direct and not is_assigned:
             raise ForbiddenError("Coaches can only record results for assigned athletes")
 
+    final_medal = data.medal
+    if not final_medal and data.position:
+        if data.position == 1:
+            final_medal = "Gold"
+        elif data.position == 2:
+            final_medal = "Silver"
+        elif data.position == 3:
+            final_medal = "Bronze"
+
+    final_points = calculate_tournament_points(
+        position=data.position,
+        medal=final_medal,
+        explicit_points=data.points,
+    )
+
     result_fields = {
         "position": data.position,
         "score": data.score,
-        "points": data.points,
-        "medal": data.medal,
+        "points": final_points,
+        "medal": final_medal,
         "remarks": data.remarks,
     }
 
@@ -493,11 +532,34 @@ async def record_tournament_result_service(
                 tournament_name=tournament.get("name", "Tournament"),
                 tournament_id=tournament_id,
                 position=data.position,
-                medal=data.medal,
-                points=data.points,
+                medal=final_medal,
+                points=final_points,
             )
         except Exception as exc:
             logger.warning("Failed to dispatch tournament result notification: %s", exc)
+
+    # Notify assigned coaches
+    if athlete:
+        try:
+            from app.services.notification_service import (
+                get_coach_user_ids_for_athlete,
+                notify_coach_tournament_result,
+            )
+            coach_uids = await get_coach_user_ids_for_athlete(db, athlete)
+            for c_uid in coach_uids:
+                await notify_coach_tournament_result(
+                    db,
+                    coach_user_id=c_uid,
+                    athlete_name=athlete.get("full_name", "Athlete"),
+                    tournament_name=tournament.get("name", "Tournament"),
+                    tournament_id=tournament_id,
+                    athlete_id=data.athlete_id,
+                    position=data.position,
+                    medal=final_medal,
+                    points=final_points,
+                )
+        except Exception as exc:
+            logger.warning("Failed to dispatch coach tournament result notification: %s", exc)
 
     sport = await get_sport_by_id(db, str(tournament["sport_id"]))
     return ParticipantResponse(

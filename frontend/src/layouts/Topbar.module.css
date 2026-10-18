@@ -168,7 +168,7 @@
 }
 
 .unreadItem {
-  background-color: rgba(34, 197, 94, 0.05);
+  background-color: rgba(255, 90, 31, 0.08);
   border-left: 3px solid var(--color-accent);
 }
 
@@ -241,8 +241,8 @@
   width: 26px;
   height: 26px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, #22c55e, #15803d);
-  color: #000;
+  background: linear-gradient(135deg, #FF5A1F, #E04B14);
+  color: #FFFFFF;
   font-weight: 800;
   font-size: 11px;
   display: flex;
@@ -272,8 +272,8 @@
   font-weight: 700;
   text-transform: uppercase;
   color: var(--color-accent);
-  background-color: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.25);
+  background-color: rgba(255, 90, 31, 0.12);
+  border: 1px solid rgba(255, 90, 31, 0.3);
   border-radius: 999px;
   padding: 1px 6px;
   letter-spacing: 0.04em;

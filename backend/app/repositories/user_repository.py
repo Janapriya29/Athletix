@@ -13,7 +13,21 @@ from app.core.security import hash_password
 
 
 async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[dict]:
-    return await db.users.find_one({"email": email.strip().lower()})
+    clean_email = email.strip().lower() if isinstance(email, str) else ""
+    if not clean_email:
+        return None
+    # 1. Exact match on normalized email
+    user = await db.users.find_one({"email": clean_email})
+    if user:
+        return user
+    # 2. Case-insensitive and whitespace-tolerant regex match fallback
+    escaped = re.escape(clean_email)
+    user = await db.users.find_one({"email": {"$regex": f"^\\s*{escaped}\\s*$", "$options": "i"}})
+    if user:
+        # Self-heal stored email for consistency
+        await db.users.update_one({"_id": user["_id"]}, {"$set": {"email": clean_email}})
+        user["email"] = clean_email
+    return user
 
 
 async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[dict]:
@@ -31,14 +45,17 @@ async def create_user(
     plain_password: str,
     role: str,
     is_active: bool = True,
+    status: Optional[str] = None,
 ) -> dict:
     now = datetime.now(timezone.utc)
+    clean_email = email.strip().lower()
     doc = {
-        "email": email.strip().lower(),
+        "email": clean_email,
         "full_name": full_name.strip(),
         "hashed_password": hash_password(plain_password),
         "role": role,
         "is_active": is_active,
+        "status": status or ("active" if is_active else "pending_approval"),
         "created_at": now,
         "updated_at": now,
     }
@@ -58,7 +75,12 @@ async def update_user(
     update_fields = {}
     for key, val in update_data.items():
         if val is not None:
-            update_fields[key] = val.strip() if isinstance(val, str) else val
+            if key == "email" and isinstance(val, str):
+                update_fields[key] = val.strip().lower()
+            elif isinstance(val, str):
+                update_fields[key] = val.strip()
+            else:
+                update_fields[key] = val
 
     if not update_fields:
         return await db.users.find_one({"_id": oid})
@@ -76,7 +98,14 @@ async def set_user_status(
     except Exception:
         return None
     now = datetime.now(timezone.utc)
-    await db.users.update_one({"_id": oid}, {"$set": {"is_active": is_active, "updated_at": now}})
+    status_str = "active" if is_active else "inactive"
+    await db.users.update_one(
+        {"_id": oid},
+        {"$set": {"is_active": is_active, "status": status_str, "updated_at": now}}
+    )
+    # Also update linked coach or athlete profile status if present
+    await db.coaches.update_one({"user_id": oid}, {"$set": {"status": status_str, "updated_at": now}})
+    await db.athletes.update_one({"user_id": oid}, {"$set": {"status": status_str, "updated_at": now}})
     return await db.users.find_one({"_id": oid})
 
 

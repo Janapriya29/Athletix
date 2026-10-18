@@ -122,6 +122,40 @@ class ParticipantResponse(BaseModel):
     registered_at: datetime
 
 
+def calculate_tournament_points(
+    position: Optional[int] = None,
+    medal: Optional[str] = None,
+    explicit_points: Optional[float] = None,
+) -> Optional[float]:
+    """
+    Calculate tournament points according to Phase B rules:
+    - 1st place or Gold medal = 10.0 points
+    - 2nd place or Silver medal = 7.0 points
+    - 3rd place or Bronze medal = 5.0 points
+    - 4th–10th place = max(1, 11 - finishing position) points
+    - If user explicitly enters points, preserve the entered value.
+    - If neither a valid position nor a recognized medal is provided and points are empty, do not invent points.
+    """
+    if explicit_points is not None:
+        try:
+            return float(explicit_points)
+        except (ValueError, TypeError):
+            pass
+
+    normalized_medal = (medal.strip().lower() if isinstance(medal, str) and medal.strip() else "")
+
+    if position == 1 or normalized_medal == "gold":
+        return 10.0
+    if position == 2 or normalized_medal == "silver":
+        return 7.0
+    if position == 3 or normalized_medal == "bronze":
+        return 5.0
+    if position is not None and 4 <= position <= 10:
+        return float(max(1, 11 - position))
+
+    return None
+
+
 class ResultRecordCreate(BaseModel):
     athlete_id: str
     position: Optional[int] = None
@@ -161,15 +195,12 @@ class ResultRecordCreate(BaseModel):
                 self.medal = "Bronze"
 
         # Automatically calculate default points if not provided
-        if self.points is None and self.position:
-            if self.position == 1:
-                self.points = 10.0
-            elif self.position == 2:
-                self.points = 5.0
-            elif self.position == 3:
-                self.points = 3.0
-            else:
-                self.points = 1.0
+        if self.points is None:
+            self.points = calculate_tournament_points(
+                position=self.position,
+                medal=self.medal,
+                explicit_points=self.points,
+            )
 
         return self
 
@@ -210,15 +241,12 @@ class ResultRecordUpdate(BaseModel):
             elif self.position == 3:
                 self.medal = "Bronze"
 
-        if self.points is None and self.position:
-            if self.position == 1:
-                self.points = 10.0
-            elif self.position == 2:
-                self.points = 5.0
-            elif self.position == 3:
-                self.points = 3.0
-            else:
-                self.points = 1.0
+        if self.points is None:
+            self.points = calculate_tournament_points(
+                position=self.position,
+                medal=self.medal,
+                explicit_points=self.points,
+            )
 
         return self
 

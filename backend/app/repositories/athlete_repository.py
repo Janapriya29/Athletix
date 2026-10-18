@@ -26,6 +26,58 @@ async def get_athlete_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional
     return await db.athletes.find_one({"email": email.strip().lower()})
 
 
+def _build_athlete_query(
+    search: Optional[str] = None,
+    sport_id: Optional[str] = None,
+    coach_id: Optional[str] = None,
+    status: Optional[str] = None,
+    allowed_athlete_ids: Optional[list[ObjectId]] = None,
+) -> dict:
+    conditions = []
+    if allowed_athlete_ids is not None:
+        conditions.append({"_id": {"$in": allowed_athlete_ids}})
+
+    if search:
+        pattern = re.escape(search.strip())
+        conditions.append({
+            "$or": [
+                {"full_name": {"$regex": pattern, "$options": "i"}},
+                {"email": {"$regex": pattern, "$options": "i"}},
+                {"phone": {"$regex": pattern, "$options": "i"}},
+            ]
+        })
+
+    if sport_id:
+        s_matches = [str(sport_id)]
+        try:
+            s_matches.append(ObjectId(sport_id))
+        except Exception:
+            pass
+        conditions.append({
+            "$or": [
+                {"sport_id": {"$in": s_matches}},
+                {"additional_sport_ids": {"$in": s_matches}},
+            ]
+        })
+
+    if coach_id:
+        c_matches = [str(coach_id)]
+        try:
+            c_matches.append(ObjectId(coach_id))
+        except Exception:
+            pass
+        conditions.append({"coach_id": {"$in": c_matches}})
+
+    if status:
+        conditions.append({"status": status})
+
+    if not conditions:
+        return {}
+    if len(conditions) == 1:
+        return conditions[0]
+    return {"$and": conditions}
+
+
 async def list_athletes(
     db: AsyncIOMotorDatabase,
     search: Optional[str] = None,
@@ -36,38 +88,13 @@ async def list_athletes(
     skip: int = 0,
     limit: int = 100,
 ) -> list[dict]:
-    query = {}
-    if allowed_athlete_ids is not None:
-        query["_id"] = {"$in": allowed_athlete_ids}
-
-    if search:
-        pattern = re.escape(search.strip())
-        query["$or"] = [
-            {"full_name": {"$regex": pattern, "$options": "i"}},
-            {"email": {"$regex": pattern, "$options": "i"}},
-            {"phone": {"$regex": pattern, "$options": "i"}},
-        ]
-    if sport_id:
-        try:
-            s_oid = ObjectId(sport_id)
-            query["$or"] = query.get("$or", []) + [{"sport_id": s_oid}, {"additional_sport_ids": s_oid}]
-            if len(query["$or"]) == 2:
-                # If only sport_id was in $or
-                query = {"$or": [{"sport_id": s_oid}, {"additional_sport_ids": s_oid}]}
-                if allowed_athlete_ids is not None:
-                    query["_id"] = {"$in": allowed_athlete_ids}
-                if status:
-                    query["status"] = status
-        except Exception:
-            return []
-    if coach_id:
-        try:
-            query["coach_id"] = ObjectId(coach_id)
-        except Exception:
-            return []
-    if status:
-        query["status"] = status
-
+    query = _build_athlete_query(
+        search=search,
+        sport_id=sport_id,
+        coach_id=coach_id,
+        status=status,
+        allowed_athlete_ids=allowed_athlete_ids,
+    )
     cursor = db.athletes.find(query).sort("full_name", 1).skip(skip).limit(limit)
     return await cursor.to_list(length=limit)
 
@@ -80,31 +107,13 @@ async def count_athletes(
     status: Optional[str] = None,
     allowed_athlete_ids: Optional[list[ObjectId]] = None,
 ) -> int:
-    query = {}
-    if allowed_athlete_ids is not None:
-        query["_id"] = {"$in": allowed_athlete_ids}
-
-    if search:
-        pattern = re.escape(search.strip())
-        query["$or"] = [
-            {"full_name": {"$regex": pattern, "$options": "i"}},
-            {"email": {"$regex": pattern, "$options": "i"}},
-            {"phone": {"$regex": pattern, "$options": "i"}},
-        ]
-    if sport_id:
-        try:
-            s_oid = ObjectId(sport_id)
-            query["$or"] = query.get("$or", []) + [{"sport_id": s_oid}, {"additional_sport_ids": s_oid}]
-        except Exception:
-            return 0
-    if coach_id:
-        try:
-            query["coach_id"] = ObjectId(coach_id)
-        except Exception:
-            return 0
-    if status:
-        query["status"] = status
-
+    query = _build_athlete_query(
+        search=search,
+        sport_id=sport_id,
+        coach_id=coach_id,
+        status=status,
+        allowed_athlete_ids=allowed_athlete_ids,
+    )
     return await db.athletes.count_documents(query)
 
 

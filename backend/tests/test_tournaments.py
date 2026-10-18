@@ -634,3 +634,407 @@ async def test_20_tournament_details_return_correct_participants_results(client,
     r_list = res_r.json()
     assert len(r_list) == 1
     assert r_list[0]["position"] == 1
+
+
+# ── 21. Sport ID consistency: Athlete with string sport_id can register ───────
+
+@pytest.mark.asyncio
+async def test_21_register_athlete_with_string_sport_id_in_db(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    # Create athlete with sport_id stored as string
+    ath_doc = await db.athletes.insert_one({
+        "full_name": "String Sport Athlete",
+        "email": "stringsport@test.com",
+        "status": "active",
+        "sport_id": data["football_id"],  # stored as str, NOT ObjectId
+        "created_at": now,
+    })
+    athlete_str_id = str(ath_doc.inserted_id)
+
+    # Create tournament with sport_id stored as ObjectId
+    t_res = await db.tournaments.insert_one({
+        "name": "String Match Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "location": "Main Stadium",
+        "start_date": now + timedelta(days=5),
+        "end_date": now + timedelta(days=8),
+        "status": "upcoming",
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    payload = {"athlete_id": athlete_str_id, "event": "Single"}
+    res = await client.post(f"/api/v1/tournaments/{t_id}/participants", json=payload, headers=auth_headers(admin_token))
+    assert res.status_code == 201, res.text
+    assert res.json()["athlete_id"] == athlete_str_id
+
+
+# ── 22. Athlete can register via additional_sport_ids (str and ObjectId) ───────
+
+@pytest.mark.asyncio
+async def test_22_register_athlete_matching_additional_sports(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    # Create additional sport
+    tennis = await db.sports.insert_one({"name": "Tennis", "is_active": True, "created_at": now})
+    tennis_id = tennis.inserted_id
+
+    # Athlete primary sport is Football, additional sport is Tennis (stored as str)
+    ath_doc = await db.athletes.insert_one({
+        "full_name": "Multi Sport Athlete",
+        "email": "multisport@test.com",
+        "status": "active",
+        "sport_id": ObjectId(data["football_id"]),
+        "additional_sport_ids": [str(tennis_id)],
+        "created_at": now,
+    })
+    athlete_id = str(ath_doc.inserted_id)
+
+    # Tennis tournament
+    t_res = await db.tournaments.insert_one({
+        "name": "Tennis Open",
+        "sport_id": tennis_id,
+        "location": "Tennis Court",
+        "start_date": now + timedelta(days=5),
+        "end_date": now + timedelta(days=8),
+        "status": "upcoming",
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    payload = {"athlete_id": athlete_id, "event": "Singles"}
+    res = await client.post(f"/api/v1/tournaments/{t_id}/participants", json=payload, headers=auth_headers(admin_token))
+    assert res.status_code == 201, res.text
+    assert res.json()["athlete_id"] == athlete_id
+
+
+# ── 23. Athlete sport mismatch rejected (400) ──────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_23_register_athlete_sport_mismatch_rejected(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    # Basketball sport
+    bball = await db.sports.insert_one({"name": "Basketball", "is_active": True, "created_at": now})
+    bball_id = bball.inserted_id
+
+    # Football athlete
+    athlete_id = data["athlete1_id"]
+
+    # Basketball tournament
+    t_res = await db.tournaments.insert_one({
+        "name": "Hoops Showdown",
+        "sport_id": bball_id,
+        "location": "Arena",
+        "start_date": now + timedelta(days=5),
+        "end_date": now + timedelta(days=8),
+        "status": "upcoming",
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    payload = {"athlete_id": athlete_id, "event": "Division A"}
+    res = await client.post(f"/api/v1/tournaments/{t_id}/participants", json=payload, headers=auth_headers(admin_token))
+    assert res.status_code == 400
+    assert "sport does not match" in res.json()["detail"].lower()
+
+
+# ── 24. Points rule: 1st place or Gold medal = 10 points ──────────────────────
+
+@pytest.mark.asyncio
+async def test_24_points_rule_gold_or_1st_place(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    t_res = await db.tournaments.insert_one({
+        "name": "Gold Points Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "status": "ongoing",
+        "start_date": now,
+        "end_date": now + timedelta(days=2),
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    # Register athlete 1
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete1_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # 1st place with no points sent -> should receive 10.0 points and Gold medal
+    res1 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 1},
+        headers=auth_headers(admin_token),
+    )
+    assert res1.status_code == 200, res1.text
+    body1 = res1.json()
+    assert body1["points"] == 10.0
+    assert body1["medal"] == "Gold"
+
+    # Register athlete 2
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete2_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Gold medal with no position and no points -> should receive 10.0 points
+    res2 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete2_id"], "medal": "Gold"},
+        headers=auth_headers(admin_token),
+    )
+    assert res2.status_code == 200, res2.text
+    body2 = res2.json()
+    assert body2["points"] == 10.0
+    assert body2["medal"] == "Gold"
+
+
+# ── 25. Points rule: 2nd place or Silver medal = 7 points ─────────────────────
+
+@pytest.mark.asyncio
+async def test_25_points_rule_silver_or_2nd_place(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    t_res = await db.tournaments.insert_one({
+        "name": "Silver Points Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "status": "ongoing",
+        "start_date": now,
+        "end_date": now + timedelta(days=2),
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete1_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Position 2 with no points -> 7.0 points and Silver medal
+    res1 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 2},
+        headers=auth_headers(admin_token),
+    )
+    assert res1.status_code == 200, res1.text
+    body1 = res1.json()
+    assert body1["points"] == 7.0
+    assert body1["medal"] == "Silver"
+
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete2_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Silver medal with no position -> 7.0 points
+    res2 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete2_id"], "medal": "Silver"},
+        headers=auth_headers(admin_token),
+    )
+    assert res2.status_code == 200, res2.text
+    body2 = res2.json()
+    assert body2["points"] == 7.0
+    assert body2["medal"] == "Silver"
+
+
+# ── 26. Points rule: 3rd place or Bronze medal = 5 points ─────────────────────
+
+@pytest.mark.asyncio
+async def test_26_points_rule_bronze_or_3rd_place(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    t_res = await db.tournaments.insert_one({
+        "name": "Bronze Points Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "status": "ongoing",
+        "start_date": now,
+        "end_date": now + timedelta(days=2),
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete1_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Position 3 with no points -> 5.0 points and Bronze medal
+    res1 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 3},
+        headers=auth_headers(admin_token),
+    )
+    assert res1.status_code == 200, res1.text
+    body1 = res1.json()
+    assert body1["points"] == 5.0
+    assert body1["medal"] == "Bronze"
+
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete2_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Bronze medal with no position -> 5.0 points
+    res2 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete2_id"], "medal": "Bronze"},
+        headers=auth_headers(admin_token),
+    )
+    assert res2.status_code == 200, res2.text
+    body2 = res2.json()
+    assert body2["points"] == 5.0
+    assert body2["medal"] == "Bronze"
+
+
+# ── 27. Points rule: 4th-10th place = max(1, 11 - finishing position) ─────────
+
+@pytest.mark.asyncio
+async def test_27_points_rule_position_4_and_10(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    t_res = await db.tournaments.insert_one({
+        "name": "Mid Pack Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "status": "ongoing",
+        "start_date": now,
+        "end_date": now + timedelta(days=2),
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    # 4th place -> max(1, 11 - 4) = 7.0 points
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete1_id"]},
+        headers=auth_headers(admin_token),
+    )
+    res_pos4 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 4},
+        headers=auth_headers(admin_token),
+    )
+    assert res_pos4.status_code == 200, res_pos4.text
+    assert res_pos4.json()["points"] == 7.0
+    assert res_pos4.json()["medal"] is None
+
+    # 10th place -> max(1, 11 - 10) = 1.0 point
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete2_id"]},
+        headers=auth_headers(admin_token),
+    )
+    res_pos10 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete2_id"], "position": 10},
+        headers=auth_headers(admin_token),
+    )
+    assert res_pos10.status_code == 200, res_pos10.text
+    assert res_pos10.json()["points"] == 1.0
+    assert res_pos10.json()["medal"] is None
+
+
+# ── 28. Explicitly entered points are preserved ────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_28_explicit_points_preserved(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    t_res = await db.tournaments.insert_one({
+        "name": "Custom Points Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "status": "ongoing",
+        "start_date": now,
+        "end_date": now + timedelta(days=2),
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete1_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Explicit points = 25.5 (overriding the 1st place default of 10.0)
+    res = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 1, "points": 25.5},
+        headers=auth_headers(admin_token),
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["points"] == 25.5
+    assert res.json()["medal"] == "Gold"
+
+    # Explicit points = 0.0 preserved
+    res_zero = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 2, "points": 0.0},
+        headers=auth_headers(admin_token),
+    )
+    assert res_zero.status_code == 200, res_zero.text
+    assert res_zero.json()["points"] == 0.0
+
+
+# ── 29. Missing/invalid position or medal: No points invented ──────────────────
+
+@pytest.mark.asyncio
+async def test_29_missing_or_invalid_position_medal_no_points_invented(client, admin_token, db, admin_user, coach_user, athlete_user):
+    data = await _setup_tournament_test_data(db, admin_user, coach_user, athlete_user)
+    now = datetime.now(timezone.utc)
+
+    t_res = await db.tournaments.insert_one({
+        "name": "No Points Cup",
+        "sport_id": ObjectId(data["football_id"]),
+        "status": "ongoing",
+        "start_date": now,
+        "end_date": now + timedelta(days=2),
+        "created_at": now,
+    })
+    t_id = str(t_res.inserted_id)
+
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete1_id"]},
+        headers=auth_headers(admin_token),
+    )
+
+    # Position 15 (> 10) and no medal, no points -> points should remain None
+    res_pos15 = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete1_id"], "position": 15},
+        headers=auth_headers(admin_token),
+    )
+    assert res_pos15.status_code == 200, res_pos15.text
+    assert res_pos15.json()["points"] is None
+
+    # Only score and remarks (no position, no medal, no points) -> points should remain None
+    await client.post(
+        f"/api/v1/tournaments/{t_id}/participants",
+        json={"athlete_id": data["athlete2_id"]},
+        headers=auth_headers(admin_token),
+    )
+    res_only_score = await client.post(
+        f"/api/v1/tournaments/{t_id}/results",
+        json={"athlete_id": data["athlete2_id"], "score": "Completed", "remarks": "Did not finish podium"},
+        headers=auth_headers(admin_token),
+    )
+    assert res_only_score.status_code == 200, res_only_score.text
+    assert res_only_score.json()["points"] is None
+

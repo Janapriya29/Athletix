@@ -174,20 +174,10 @@ export default function RegisterPage() {
                     Manage assigned athletes, schedule training, and record assessments.
                   </p>
                 </div>
+              </div>
 
-                <div
-                  className={`${styles.roleTile} ${role === 'admin' ? styles.roleActive : ''}`}
-                  onClick={() => setRole('admin')}
-                >
-                  <div className={styles.roleTileTop}>
-                    <span className={styles.roleIcon}>👑</span>
-                    <span className={styles.roleName}>Admin</span>
-                    <span className={styles.adminBadge}>Admin Request</span>
-                  </div>
-                  <p className={styles.roleDesc}>
-                    Academy operations, user rosters, sports, and system reporting.
-                  </p>
-                </div>
+              <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+                ℹ️ <strong>Admin accounts</strong> are provisioned directly by academy leadership from the User Management console.
               </div>
             </div>
 

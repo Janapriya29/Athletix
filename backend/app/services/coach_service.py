@@ -18,6 +18,7 @@ from app.repositories.coach_repository import (
 from app.repositories.sport_repository import get_sport_by_id
 from app.repositories.user_repository import create_user, get_user_by_email, get_user_by_id
 from app.schemas.coach import CoachCreate, CoachResponse, CoachUpdate
+from app.services.notification_service import notify_coach_athlete_assigned
 
 
 async def _resolve_coach_response(db: AsyncIOMotorDatabase, doc: dict) -> CoachResponse:
@@ -196,6 +197,14 @@ async def assign_athletes_to_coach_service(
             raise BadRequestError(f"Invalid athlete ID '{a_id}'")
 
     await assign_athletes_to_coach(db, coach_id, athlete_ids)
+    if coach.get("user_id"):
+        for a_id in athlete_ids:
+            try:
+                ath = await db.athletes.find_one({"_id": ObjectId(a_id)})
+                ath_name = ath.get("full_name") if ath else "Athlete"
+                await notify_coach_athlete_assigned(db, str(coach["user_id"]), ath_name, str(a_id))
+            except Exception:
+                pass
     return {"message": f"Successfully assigned {len(athlete_ids)} athlete(s) to coach"}
 
 

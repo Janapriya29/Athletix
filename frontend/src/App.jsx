@@ -32,6 +32,7 @@ import AssessmentsPage from './pages/coach/AssessmentsPage'
 import AnalyticsPage from './pages/coach/AnalyticsPage'
 import CoachTournamentsPage from './pages/coach/CoachTournamentsPage'
 import CoachReportsPage from './pages/coach/CoachReportsPage'
+import CoachNotificationsPage from './pages/coach/CoachNotificationsPage'
 
 // Athlete
 import AthleteDashboard from './pages/athlete/AthleteDashboard'
@@ -80,6 +81,7 @@ function AppRoutes() {
       <Route path="/admin/tournaments" element={<ProtectedRoute role="admin"><AdminTournamentsPage /></ProtectedRoute>} />
       <Route path="/admin/rankings"  element={<ProtectedRoute role="admin"><RankingsPage role="admin" /></ProtectedRoute>} />
       <Route path="/admin/reports"   element={<ProtectedRoute role="admin"><ReportsPage /></ProtectedRoute>} />
+      <Route path="/admin/notifications" element={<ProtectedRoute role="admin"><NotificationsPage /></ProtectedRoute>} />
 
       {/* Coach routes */}
       <Route path="/coach/dashboard"   element={<ProtectedRoute role="coach"><CoachDashboard /></ProtectedRoute>} />
@@ -93,6 +95,7 @@ function AppRoutes() {
       <Route path="/coach/tournaments" element={<ProtectedRoute role="coach"><CoachTournamentsPage /></ProtectedRoute>} />
       <Route path="/coach/rankings"    element={<ProtectedRoute role="coach"><RankingsPage role="coach" /></ProtectedRoute>} />
       <Route path="/coach/reports"     element={<ProtectedRoute role="coach"><CoachReportsPage /></ProtectedRoute>} />
+      <Route path="/coach/notifications" element={<ProtectedRoute role="coach"><CoachNotificationsPage /></ProtectedRoute>} />
 
       {/* Athlete routes */}
       <Route path="/athlete/dashboard"      element={<ProtectedRoute role="athlete"><AthleteDashboard /></ProtectedRoute>} />

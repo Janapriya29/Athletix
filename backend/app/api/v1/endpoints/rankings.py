@@ -30,6 +30,7 @@ async def get_rankings(
     current_user: Annotated[dict, Depends(get_current_user)],
     type: str = Query(default="tournament", description="Ranking type: tournament, performance, attendance, improvement"),
     sport_id: Optional[str] = Query(default=None, description="Optional sport ID filter"),
+    include_zero: bool = Query(default=True, description="Whether to include zero-participation / unassessed athletes"),
 ):
     """
     Get unified academy rankings by type.
@@ -37,37 +38,40 @@ async def get_rankings(
     Accessible to all authenticated users.
     """
     db = get_database()
-    return await get_rankings_service(db, ranking_type=type, sport_id=sport_id)
+    return await get_rankings_service(db, ranking_type=type, sport_id=sport_id, include_zero=include_zero)
 
 
 @router.get("/tournament", response_model=list[TournamentRankingItem])
 async def get_tournament_rankings(
     current_user: Annotated[dict, Depends(get_current_user)],
     sport_id: Optional[str] = Query(default=None, description="Optional sport ID filter"),
+    include_zero: bool = Query(default=False, description="Whether to include zero-participation athletes"),
 ):
     """Get tournament points and medal rankings."""
     db = get_database()
-    return await get_tournament_rankings_service(db, sport_id=sport_id)
+    return await get_tournament_rankings_service(db, sport_id=sport_id, include_zero=include_zero)
 
 
 @router.get("/performance", response_model=list[PerformanceRankingItem])
 async def get_performance_rankings(
     current_user: Annotated[dict, Depends(get_current_user)],
     sport_id: Optional[str] = Query(default=None, description="Optional sport ID filter"),
+    include_zero: bool = Query(default=False, description="Whether to include unassessed athletes"),
 ):
     """Get performance assessment score rankings."""
     db = get_database()
-    return await get_performance_rankings_service(db, sport_id=sport_id)
+    return await get_performance_rankings_service(db, sport_id=sport_id, include_zero=include_zero)
 
 
 @router.get("/attendance", response_model=list[AttendanceRankingItem])
 async def get_attendance_rankings(
     current_user: Annotated[dict, Depends(get_current_user)],
     sport_id: Optional[str] = Query(default=None, description="Optional sport ID filter"),
+    include_zero: bool = Query(default=False, description="Whether to include zero-session athletes"),
 ):
     """Get training attendance percentage rankings."""
     db = get_database()
-    return await get_attendance_rankings_service(db, sport_id=sport_id)
+    return await get_attendance_rankings_service(db, sport_id=sport_id, include_zero=include_zero)
 
 
 @router.get("/improvement", response_model=list[ImprovementRankingItem])

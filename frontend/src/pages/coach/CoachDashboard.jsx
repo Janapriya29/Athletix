@@ -14,6 +14,7 @@ import {
   getTrainingSessions,
   getCoachTrainingSummary,
 } from '../../services/trainingService'
+import SportsBanner from '../../components/common/SportsBanner'
 import styles from './CoachDashboard.module.css'
 
 export default function CoachDashboard() {
@@ -60,27 +61,37 @@ export default function CoachDashboard() {
   return (
     <AppLayout title="Coach Command Center">
       <div className={styles.dashboard}>
-        {/* Header Bar */}
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1>Coach Command Center</h1>
-            <p>Squad performance tracking, drills management & athlete readiness</p>
-          </div>
-          <div className={styles.actionRow}>
-            <Link to="/coach/assessments" className={styles.primaryBtn}>
-              <span>🎯</span> Conduct Assessment
-            </Link>
-            <Link to="/coach/attendance" className={styles.secondaryBtn}>
-              <span>📋</span> Mark Attendance
-            </Link>
-            <Link to="/coach/training" className={styles.secondaryBtn}>
-              <span>⏱️</span> Schedule Drills
-            </Link>
-            <Link to="/coach/reports" className={styles.secondaryBtn}>
-              <span>📑</span> Squad Reports
-            </Link>
-          </div>
-        </div>
+        {/* Sports Hero Banner */}
+        <SportsBanner
+          image="/images/coach_tactical_training.jpg"
+          alt="Coach Tactical Training"
+          badge="COACH COMMAND CENTER"
+          title="Coach Command Center"
+          subtitle="Squad performance tracking, drills management & athlete readiness"
+          actions={
+            <div className={styles.actionRow}>
+              <Link to="/coach/assessments" className={styles.primaryBtn}>
+                <span>🎯</span> Conduct Assessment
+              </Link>
+              <Link to="/coach/attendance" className={styles.secondaryBtn}>
+                <span>📋</span> Mark Attendance
+              </Link>
+              <Link to="/coach/training" className={styles.secondaryBtn}>
+                <span>⏱️</span> Schedule Drills
+              </Link>
+              <Link to="/coach/reports" className={styles.secondaryBtn}>
+                <span>📑</span> Squad Reports
+              </Link>
+            </div>
+          }
+          metrics={
+            summary ? [
+              { label: 'Assigned Squad', value: summary.total_athletes ?? '-' },
+              { label: 'Avg Attendance', value: summary.average_attendance_percentage ? `${summary.average_attendance_percentage}%` : '-' },
+              { label: 'Total Drills', value: trainingSummary?.total_sessions ?? '-' },
+            ] : undefined
+          }
+        />
 
         {/* Attendance Risk Alert */}
         {athletesAtRisk > 0 && (

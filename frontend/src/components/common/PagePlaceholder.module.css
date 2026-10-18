@@ -12,13 +12,13 @@
 .badge {
   font-size: var(--text-xs);
   padding: var(--space-1) var(--space-3);
-  background-color: rgba(34, 197, 94, 0.12);
+  background-color: rgba(255, 90, 31, 0.12);
   color: var(--color-accent);
   border-radius: 999px;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  border: 1px solid rgba(255, 90, 31, 0.35);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .title {

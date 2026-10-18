@@ -16,6 +16,7 @@ const TAB_CONFIG = [
 export default function RankingsPage({ role = 'admin' }) {
   const [activeTab, setActiveTab] = useState('tournament')
   const [selectedSport, setSelectedSport] = useState('')
+  const [includeZero, setIncludeZero] = useState(true)
   const [sports, setSports] = useState([])
   const [rankingsData, setRankingsData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -37,7 +38,7 @@ export default function RankingsPage({ role = 'admin' }) {
     setLoading(true)
     setError(null)
     try {
-      const data = await getRankings(activeTab, selectedSport || null)
+      const data = await getRankings(activeTab, selectedSport || null, includeZero)
       setRankingsData(data?.items || [])
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load rankings leaderboard.')
@@ -48,7 +49,7 @@ export default function RankingsPage({ role = 'admin' }) {
 
   useEffect(() => {
     fetchRankings()
-  }, [activeTab, selectedSport])
+  }, [activeTab, selectedSport, includeZero])
 
   const renderRankBadge = (rank) => {
     if (rank === 1) return <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>🥇 #1</span>
@@ -71,20 +72,31 @@ export default function RankingsPage({ role = 'admin' }) {
             </p>
           </div>
 
-          <div className={styles.controls}>
-            <label style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Sport:</label>
-            <select
-              className={styles.selectInput}
-              value={selectedSport}
-              onChange={(e) => setSelectedSport(e.target.value)}
-            >
-              <option value="">All Sports</option>
-              {sports.map((sp) => (
-                <option key={sp._id || sp.id} value={sp._id || sp.id}>
-                  {sp.name}
-                </option>
-              ))}
-            </select>
+          <div className={styles.controls} style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={includeZero}
+                onChange={(e) => setIncludeZero(e.target.checked)}
+              />
+              Include zero-activity athletes
+            </label>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Sport:</label>
+              <select
+                className={styles.selectInput}
+                value={selectedSport}
+                onChange={(e) => setSelectedSport(e.target.value)}
+              >
+                <option value="">All Sports</option>
+                {sports.map((sp) => (
+                  <option key={sp._id || sp.id} value={sp._id || sp.id}>
+                    {sp.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -114,10 +126,10 @@ export default function RankingsPage({ role = 'admin' }) {
         {/* Tie-breaking footnote info */}
         <div style={{ padding: '8px 14px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
           ℹ️ <strong>Tie-handling rule:</strong>{' '}
-          {activeTab === 'tournament' && 'Ranked by Points (desc), then Gold (desc), Silver (desc), Bronze (desc), then Athlete name.'}
-          {activeTab === 'performance' && 'Ranked by Assessment Score (desc), then Athlete name.'}
-          {activeTab === 'attendance' && 'Ranked by Attendance Percentage (desc), then Athlete name.'}
-          {activeTab === 'improvement' && 'Ranked by Improvement Percentage (desc), then Athlete name (requires >= 2 assessments).'}
+          {activeTab === 'tournament' && 'Ranked by Points (desc), Gold (desc), Silver (desc), Bronze (desc), Tournaments Played (desc), then Athlete name.'}
+          {activeTab === 'performance' && 'Ranked by Assessment Score (desc), then Athlete name. Athletes without assessments are displayed with "Unassessed" status.'}
+          {activeTab === 'attendance' && 'Ranked by Attendance Rate (desc), Total Sessions (desc), then Athlete name. Zero-session athletes show "—".'}
+          {activeTab === 'improvement' && 'Ranked by Improvement % (desc), then Athlete name (requires ≥ 2 assessments to calculate).'}
         </div>
 
         {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
@@ -209,19 +221,19 @@ export default function RankingsPage({ role = 'admin' }) {
 
                       {activeTab === 'performance' && (
                         <>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--color-accent)' }}>
-                            {item.performance_score} / 100
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: item.performance_score != null ? 'var(--color-accent)' : 'var(--color-text-muted)' }}>
+                            {item.performance_score != null ? `${item.performance_score} / 100` : <span style={{ fontStyle: 'italic', fontWeight: 400 }}>Unassessed</span>}
                           </td>
-                          <td>
-                            {item.assessment_date ? new Date(item.assessment_date).toLocaleDateString() : 'N/A'}
+                          <td style={{ color: item.assessment_date ? 'inherit' : 'var(--color-text-muted)' }}>
+                            {item.assessment_date ? new Date(item.assessment_date).toLocaleDateString() : '—'}
                           </td>
                         </>
                       )}
 
                       {activeTab === 'attendance' && (
                         <>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: item.attendance_percentage >= 75 ? '#22c55e' : '#ef4444' }}>
-                            {item.attendance_percentage}%
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: item.total_sessions === 0 ? 'var(--color-text-muted)' : item.attendance_percentage >= 75 ? '#22c55e' : '#ef4444' }}>
+                            {item.total_sessions === 0 ? '—' : `${item.attendance_percentage}%`}
                           </td>
                           <td style={{ textAlign: 'center' }}>{item.attended_sessions}</td>
                           <td style={{ textAlign: 'center' }}>{item.total_sessions}</td>

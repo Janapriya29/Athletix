@@ -3,6 +3,7 @@ import AppLayout from '../../layouts/AppLayout'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorMessage from '../../components/common/ErrorMessage'
 import StatCard from '../../components/common/StatCard'
+import SportsBanner from '../../components/common/SportsBanner'
 import styles from '../../styles/Management.module.css'
 import {
   getTournaments,
@@ -90,6 +91,20 @@ export default function AthleteTournamentsPage() {
   return (
     <AppLayout title="Tournaments & Competitions">
       <div className={styles.container}>
+        {/* Tournament Championship Hero Banner */}
+        <SportsBanner
+          image="/images/tournament_championship_arena.jpg"
+          alt="Tournament Championship Arena"
+          badge="ATHLETE COMPETITIONS"
+          title="Tournaments & Fixtures"
+          subtitle="Explore upcoming tournaments, register for academy fixtures, and view your career medal haul"
+          metrics={[
+            { label: 'Competitions', value: totalPlayed },
+            { label: 'Total Points', value: `${totalPoints} pts` },
+            { label: 'Medal Count', value: goldCount + silverCount + bronzeCount },
+          ]}
+        />
+
         {/* Personal Tournament Performance Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
           <StatCard title="Competitions" value={totalPlayed} icon="🏃" />

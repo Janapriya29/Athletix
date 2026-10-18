@@ -194,3 +194,101 @@ async def test_logout_authenticated(client, admin_user, admin_token):
 async def test_logout_unauthenticated(client):
     resp = await client.post("/api/v1/auth/logout")
     assert resp.status_code == 401
+
+
+# ── Phase G Security Regressions: Inactive & Stale Token Gating ────────────────
+
+@pytest.mark.asyncio
+async def test_inactive_user_token_blocked_from_protected_apis(client, inactive_user):
+    from app.core.security import create_access_token
+    token = create_access_token({
+        "sub": str(inactive_user["_id"]),
+        "role": inactive_user["role"],
+        "email": inactive_user["email"],
+    })
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(token))
+    assert resp.status_code == 401
+    assert "inactive" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_dynamically_deactivated_user_token_immediately_revoked(
+    client, db, athlete_user, athlete_token
+):
+    # Verify active token works initially
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(athlete_token))
+    assert resp.status_code == 200
+
+    # Deactivate user in database
+    await db.users.update_one(
+        {"_id": athlete_user["_id"]},
+        {"$set": {"is_active": False, "status": "inactive"}},
+    )
+
+    # Pre-existing token must be rejected immediately
+    revoked_resp = await client.get("/api/v1/auth/me", headers=auth_headers(athlete_token))
+    assert revoked_resp.status_code == 401
+    assert "inactive" in revoked_resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_pending_approval_user_token_blocked(client, db):
+    from datetime import datetime, timezone
+    from app.core.security import create_access_token, hash_password
+    now = datetime.now(timezone.utc)
+    res = await db.users.insert_one({
+        "email": "pending_coach@test.com",
+        "full_name": "Pending Coach",
+        "hashed_password": hash_password("CoachPassword123"),
+        "role": "coach",
+        "is_active": False,
+        "status": "pending_approval",
+        "created_at": now,
+        "updated_at": now,
+    })
+    token = create_access_token({
+        "sub": str(res.inserted_id),
+        "role": "coach",
+        "email": "pending_coach@test.com",
+    })
+
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(token))
+    assert resp.status_code == 401
+    assert "inactive" in resp.json()["detail"].lower() or "pending" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_user_token_rejected(client):
+    from app.core.security import create_access_token
+    fake_token = create_access_token({
+        "sub": "507f1f77bcf86cd799439011",
+        "role": "athlete",
+        "email": "ghost@test.com",
+    })
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(fake_token))
+    assert resp.status_code == 401
+    assert "does not exist" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_malformed_user_id_in_token_rejected(client):
+    from app.core.security import create_access_token
+    bad_id_token = create_access_token({
+        "sub": "not-a-valid-object-id-12345",
+        "role": "athlete",
+        "email": "badid@test.com",
+    })
+    resp = await client.get("/api/v1/auth/me", headers=auth_headers(bad_id_token))
+    assert resp.status_code == 401
+    assert "invalid" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_login_invalid_email_timing_mitigation(client):
+    resp = await client.post(
+        "/api/v1/auth/login",
+        data=form_data("nonexistent_user_never_registered@test.com", "SomePassword123"),
+    )
+    assert resp.status_code == 401
+    assert "invalid email or password" in resp.json()["detail"].lower()
+
